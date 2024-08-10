@@ -1,0 +1,2184 @@
+<head>
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        #canvas {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            position: fixed;
+            position: relative;
+        }
+        
+        .error {
+            font-family: Consolas;
+            font-size: 1.2em;
+            color: black;
+            box-sizing: border-box;
+            background-color: lightcoral;
+            border-radius: 2px;
+            border-color: lightblue;
+            border-width: thin;
+            border-style: solid;
+            line-height: 1.4em;
+            cursor:pointer;
+        }
+        .error:hover {
+            color: black;
+            background-color: brown;
+            border-color: blue;
+        }
+        #message {
+            font-family: Consolas;
+            font-size: 1.2em;
+            color: #ccc;
+            background-color: black;
+            font-weight: bold;
+            z-index: 2;
+            position: absolute;
+        }
+
+        #dat_gui_container {
+            position: absolute;
+            left: 0px;   /* position inside relatively positioned parent */
+            top: 0px;
+            z-index: 3;   /* adjust as needed */
+        }
+
+        /* Pause Button Style */
+
+        .rec_base {
+            position: absolute;
+            border: none;
+            right: 0px;
+            padding: 26px;
+            text-align: center;
+            text-decoration: none;
+            font-size: 26px;
+            border-radius: 8px;
+            margin: 8px;
+            transform: translateX(0%);
+            z-index: 1;
+        }
+        .rec_base:nth-of-type(2) {
+            top: 60px;
+        }
+        
+        /* Screenshot Button Style */
+        
+        /* Record Button Style */
+
+        /* Reload Button Style */
+    </style>
+</head>
+<body>
+    <div id="message"></div>
+    <div id="dat_gui_container"></div>
+    <div id="container">
+        <!-- Pause Element -->
+    </div>
+    <!-- Screenshot Element -->
+    <!-- Record Element -->
+    <!-- Reload Element -->
+</body>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/110/three.min.js"></script>
+<!-- Stats.js -->
+<script src='https://cdnjs.cloudflare.com/ajax/libs/stats.js/r16/Stats.min.js' onload="
+let stats = new Stats();
+compileTimePanel = stats.addPanel(new Stats.Panel('CT MS', '#ff8', '#221'));
+stats.showPanel(1);
+document.body.appendChild(stats.domElement);
+requestAnimationFrame(function loop() {
+    stats.update();
+    requestAnimationFrame(loop);
+});
+"></script>
+<!-- dat.gui -->
+
+<canvas id="canvas"></canvas>
+
+<!-- Shaders -->
+<script id='/Users/jeanmarcos/Desktop/pa5-jeanmarcos-perez/sdf.glsl' type='x-shader/x-fragment'>#version 300 es
+    precision highp float;
+    uniform vec3        iResolution;
+uniform float       iTime;
+uniform float       iTimeDelta;
+uniform int         iFrame;
+uniform vec4        iDate;
+uniform vec3        iChannelResolution[10];
+uniform vec4        iMouse;
+uniform vec4        iMouseButton;
+uniform mat4        iViewMatrix;
+uniform sampler2D   iChannel0;
+uniform sampler2D   iChannel1;
+uniform sampler2D   iChannel2;
+uniform sampler2D   iChannel3;
+uniform sampler2D   iChannel4;
+uniform sampler2D   iChannel5;
+uniform sampler2D   iChannel6;
+uniform sampler2D   iChannel7;
+uniform sampler2D   iChannel8;
+uniform sampler2D   iChannel9;
+uniform sampler2D   iKeyboard;
+uniform float       iSampleRate;
+
+#define iGlobalTime iTime
+#define iGlobalFrame iFrame
+
+#define SHADER_TOY
+
+    #define SPHERE 0
+#define BOX 1
+#define CYLINDER 3
+#define CONE 5
+#define NONE 4
+
+////////////////////////////////////////////////////
+// TASK 1 - Write up your SDF code here:
+////////////////////////////////////////////////////
+
+// returns the signed distance to a sphere from position p
+float sdSphere(vec3 p, float r)
+{
+    return length(p) - r;
+}
+
+// Task 1.1
+//
+// Returns the signed distance to a line segment.
+//
+// p is the position you are evaluating the distance to.
+// a and b are the end points of your line.
+//
+float sdLine(in vec2 p, in vec2 a, in vec2 b)
+{
+
+// ################ Edit your code below ################
+
+    vec2 ab = b - a;
+    vec2 pa = p - a;
+
+    float t = dot(pa, ab) / dot(ab, ab);
+
+    t = clamp(t, 0.0, 1.0);
+
+    return length(p - (a + t * ab));
+}
+
+// Task 1.2
+//
+// Returns the signed distance from position p to an axis-aligned box centered at the origin with half-length,
+// half-height, and half-width specified by half_bounds
+//
+float sdBox(vec3 p, vec3 half_bounds)
+{
+
+// ################ Edit your code below ################
+
+    vec3 d = abs(p) - half_bounds;
+    
+    return min(max(d.x, max(d.y, d.z)), 0.0) + length(max(d, 0.0));
+}
+
+// Task 1.3
+//
+// Returns the signed distance from position p to a cylinder or radius r with an axis connecting the two points a and b.
+//
+float sdCylinder(vec3 p, vec3 a, vec3 b, float r)
+{
+
+// ################ Edit your code below ################
+
+    float dot1 = dot(b - a,b - a);
+    float dot2 = dot(p - a,b - a);
+
+    float x = length((p - a) * dot1 - (b - a) * dot2) - (r * dot1);
+    float y = abs(dot2 - dot1 * 0.5) - (dot1 * 0.5);
+
+    float x2 = pow(x, 2.0);
+    float y2 = pow(y, 2.0);
+    
+    float d;
+
+    if (max(x, y) < 0.0) 
+    {
+        d = -min(x2, y2);
+    } 
+    else 
+    {
+        float x2_check;
+        float y2_check;
+
+        if (x > 0.0) {
+            x2_check = x2;
+        }
+        if (y > 0.0) {
+            y2_check = y2;
+        }
+
+        d = x2_check + y2_check;
+    }    
+
+    return sign(d) * sqrt(abs(d));
+}
+
+// Task 1.4
+//
+// Returns the signed distance from position p to a cone with axis connecting points a and b and (ra, rb) being the
+// radii at a and b respectively.
+//
+float sdCone(vec3 p, vec3 a, vec3 b, float ra, float rb)
+{
+
+// ################ Edit your code below ################
+
+    float radius  = rb - ra;
+
+    float length = dot(b - a,b - a);
+    float distance = dot(p - a,p - a);
+    float projection = dot(p - a,b - a) / length;
+
+    float x = sqrt(distance - pow(projection, 2.0) * length);
+
+    float ax;
+    if (projection < 0.5) {
+        ax = max(0.0, x - ra);
+    } else {
+        ax = max(0.0, x - rb);
+    }
+
+    float ay = abs(projection - 0.5) - 0.5;
+
+    float inter = clamp((radius * (x - ra) + (projection * length)) / (pow(radius, 2.0) + length), 0.0, 1.0);
+
+    float bx = x - ra - (inter * radius);
+    float by = projection - inter;
+    
+    float resA = pow(ax, 2.0) + pow(ay, 2.0) * length;
+    float resB = pow(bx, 2.0) + pow(by, 2.0) * length;
+
+    if (bx < 0.0 && ay < 0.0) {
+        return -1.0 * sqrt(min(resA,resB));
+    } else {
+        return sqrt(min(resA,resB));
+    }
+}
+
+// Task 1.5
+float opSmoothUnion(float d1, float d2, float k)
+{
+
+// ################ Edit your code below ################
+
+    float h = max(k - abs(d1 - d2), 0.0);
+    return min(d1, d2) - (pow(h, 2.0) / (4.0 * k));
+}
+
+// Task 1.6
+float opSmoothIntersection(float d1, float d2, float k)
+{
+
+// ################ Edit your code below ################
+
+    float h = max(k - abs(d1 - d2), 0.0);
+    return max(d1, d2) + (pow(h, 2.0) / (4.0 * k)); 
+}
+
+// Task 1.7
+float opSmoothSubtraction(float d1, float d2, float k)
+{
+
+// ################ Edit your code below ################
+
+    float h = max(k - abs(d1 + d2), 0.0);
+    return max(-d1, d2) + (pow(h, 2.0) / (4.0 * k));
+}
+
+// Task 1.8
+float opRound(float d, float iso)
+{
+
+// ################ Edit your code below ################
+
+    return d - iso;
+}
+
+////////////////////////////////////////////////////
+// FOR TASK 3 & 4
+////////////////////////////////////////////////////
+
+#define TASK3 3
+#define TASK4 4
+#define TASK5 5
+
+// Render Settings
+//
+struct settings
+{
+    int sdf_func;      // Which primitive is being visualized (e.g. SPHERE, BOX, etc.)
+    int shade_mode;    // How the primiive is being visualized (GRID or COST)
+    int marching_type; // Should we use RAY_MARCHING or SPHERE_TRACING?
+    int task_world;    // Which task is being rendered (TASK3 or TASK4)?
+    float anim_speed;  // Specifies the animation speed
+};
+
+// returns the signed distance to an infinite plane with a specific y value
+float sdPlane(vec3 p, float z)
+{
+    return p.y - z;
+}
+
+float world_sdf(vec3 p, float time, settings setts)
+{
+    if (setts.task_world == TASK3)
+    {
+        if ((setts.sdf_func == SPHERE) || (setts.sdf_func == NONE))
+        {
+            return min(sdSphere(p - vec3(0.f, 0.25 * cos(setts.anim_speed * time), 0.f), 0.4f), sdPlane(p, 0.f));
+        }
+        if (setts.sdf_func == BOX)
+        {
+            return min(sdBox(p - vec3(0.f, 0.25 * cos(setts.anim_speed * time), 0.f), vec3(0.4f)), sdPlane(p, 0.f));
+        }
+        if (setts.sdf_func == CYLINDER)
+        {
+            return min(sdCylinder(p - vec3(0.f, 0.25 * cos(setts.anim_speed * time), 0.f), vec3(0.0f, -0.4f, 0.f),
+                                  vec3(0.f, 0.4f, 0.f), 0.2f),
+                       sdPlane(p, 0.f));
+        }
+        if (setts.sdf_func == CONE)
+        {
+            return min(sdCone(p - vec3(0.f, 0.25 * cos(setts.anim_speed * time), 0.f), vec3(-0.4f, 0.0f, 0.f),
+                              vec3(0.4f, 0.0f, 0.f), 0.1f, 0.6f),
+                       sdPlane(p, 0.f));
+        }
+    }
+
+    if (setts.task_world == TASK4)
+    {
+        float dist = 100000.0;
+
+        dist = sdPlane(p.xyz, -0.3);
+        dist = opSmoothUnion(dist, sdSphere(p - vec3(0.f, 0.25 * cos(setts.anim_speed * time), 0.f), 0.4f), 0.1);
+        dist = opSmoothUnion(
+            dist, sdSphere(p - vec3(sin(time), 0.25 * cos(setts.anim_speed * time * 2. + 0.2), cos(time)), 0.2f), 0.01);
+        dist = opSmoothSubtraction(sdBox(p - vec3(0.f, 0.25, 0.f), 0.1 * vec3(2. + cos(time))), dist, 0.2);
+        dist = opSmoothUnion(
+            dist, sdSphere(p - vec3(sin(-time), 0.25 * cos(setts.anim_speed * time * 25. + 0.2), cos(-time)), 0.2f),
+            0.1);
+
+        return dist;
+    }
+
+    if (setts.task_world == TASK5)
+    {
+        float dist = 100000.0;
+
+        dist = sdPlane(p.xyz, -0.3);
+
+        vec3 boxPosition0 = vec3(-0.6, 0.2 * abs(sin(time)), 0.0);
+        vec3 boxPosition1 = vec3(-0.3, 0.4 * abs(sin(time * 1.5)), 0.0);
+        vec3 boxPosition2 = vec3(0.0, 0.2 * abs(sin(time * 2.0)), 0.0);
+        vec3 boxPosition3 = vec3(0.3, 0.3 * abs(sin(time * 2.5)), 0.0);
+        vec3 boxPosition4 = vec3(0.6, 0.1 * abs(sin(time * 3.0)), 0.0);
+
+        dist = opSmoothUnion(dist, sdBox(p - boxPosition0, vec3(0.1)), 0.1);
+        dist = opSmoothUnion(dist, sdBox(p - boxPosition1, vec3(0.1)), 0.1);
+        dist = opSmoothUnion(dist, sdBox(p - boxPosition2, vec3(0.1)), 0.1);
+        dist = opSmoothUnion(dist, sdBox(p - boxPosition3, vec3(0.1)), 0.1);
+        dist = opSmoothUnion(dist, sdBox(p - boxPosition4, vec3(0.1)), 0.1);
+
+        vec3 spherePosition0 = vec3(cos(-time), sin(-time), 0.0);
+        vec3 spherePosition1 = vec3(cos(-time + 1.0), sin(-time + 1.0), 0.0);
+        vec3 spherePosition2 = vec3(cos(-time + 2.0), sin(-time + 2.0), 0.0);
+        vec3 spherePosition3 = vec3(cos(-time + 3.0), sin(-time + 3.0), 0.0);
+        vec3 spherePosition4 = vec3(cos(-time + 4.0), sin(-time + 4.0), 0.0);
+        vec3 spherePosition5 = vec3(cos(-time + 5.0), sin(-time + 5.0), 0.0);
+
+
+        dist = opSmoothUnion(dist, sdSphere(p - spherePosition0, 0.1), 0.1);
+        dist = opSmoothUnion(dist, sdSphere(p - spherePosition1, 0.1), 0.1);
+        dist = opSmoothUnion(dist, sdSphere(p - spherePosition2, 0.1), 0.1);
+        dist = opSmoothUnion(dist, sdSphere(p - spherePosition3, 0.1), 0.1);
+        dist = opSmoothUnion(dist, sdSphere(p - spherePosition4, 0.1), 0.1);
+        dist = opSmoothUnion(dist, sdSphere(p - spherePosition5, 0.1), 0.1);
+
+
+        return dist;
+    }
+
+
+
+    return 1.f;
+}
+    void main() {}
+</script><script id='/Users/jeanmarcos/Desktop/pa5-jeanmarcos-perez/common.glsl' type='x-shader/x-fragment'>#version 300 es
+    precision highp float;
+    uniform vec3        iResolution;
+uniform float       iTime;
+uniform float       iTimeDelta;
+uniform int         iFrame;
+uniform vec4        iDate;
+uniform vec3        iChannelResolution[10];
+uniform vec4        iMouse;
+uniform vec4        iMouseButton;
+uniform mat4        iViewMatrix;
+uniform sampler2D   iChannel0;
+uniform sampler2D   iChannel1;
+uniform sampler2D   iChannel2;
+uniform sampler2D   iChannel3;
+uniform sampler2D   iChannel4;
+uniform sampler2D   iChannel5;
+uniform sampler2D   iChannel6;
+uniform sampler2D   iChannel7;
+uniform sampler2D   iChannel8;
+uniform sampler2D   iChannel9;
+uniform sampler2D   iKeyboard;
+uniform float       iSampleRate;
+
+#define iGlobalTime iTime
+#define iGlobalFrame iFrame
+
+#define SHADER_TOY
+
+    // pre-defined constants
+#define EPSILON 1e-4
+#define PI 3.1415926535897932384626433832795
+
+// The animation which you see is of a 2D slice of a 3D object. The objects exist in [-1, 1] space
+// and the slice is continuously moved along z=[-1,1] using a cosine. This method renders what the
+// current z value is as a progress bar at the bottom of the animation for reference.
+vec3 shade_progress_bar(vec2 p, vec2 res, float z)
+{
+    // have to take account of the aspect ratio
+    float xpos = p.x * res.y / res.x;
+
+    if (xpos > z - 0.01 && xpos < z + 0.01)
+        return vec3(1.0);
+    else
+        return vec3(0.0);
+}
+
+    void main() {}
+</script><script id='/Users/jeanmarcos/Desktop/pa5-jeanmarcos-perez/ray.glsl' type='x-shader/x-fragment'>#version 300 es
+    precision highp float;
+    uniform vec3        iResolution;
+uniform float       iTime;
+uniform float       iTimeDelta;
+uniform int         iFrame;
+uniform vec4        iDate;
+uniform vec3        iChannelResolution[10];
+uniform vec4        iMouse;
+uniform vec4        iMouseButton;
+uniform mat4        iViewMatrix;
+uniform sampler2D   iChannel0;
+uniform sampler2D   iChannel1;
+uniform sampler2D   iChannel2;
+uniform sampler2D   iChannel3;
+uniform sampler2D   iChannel4;
+uniform sampler2D   iChannel5;
+uniform sampler2D   iChannel6;
+uniform sampler2D   iChannel7;
+uniform sampler2D   iChannel8;
+uniform sampler2D   iChannel9;
+uniform sampler2D   iKeyboard;
+uniform float       iSampleRate;
+
+#define iGlobalTime iTime
+#define iGlobalFrame iFrame
+
+#define SHADER_TOY
+
+    #define SPHERE 0
+#define BOX 1
+#define CYLINDER 3
+#define CONE 5
+#define NONE 4
+
+////////////////////////////////////////////////////
+// TASK 1 - Write up your SDF code here:
+////////////////////////////////////////////////////
+
+// returns the signed distance to a sphere from position p
+float sdSphere(vec3 p, float r)
+{
+    return length(p) - r;
+}
+
+// Task 1.1
+//
+// Returns the signed distance to a line segment.
+//
+// p is the position you are evaluating the distance to.
+// a and b are the end points of your line.
+//
+float sdLine(in vec2 p, in vec2 a, in vec2 b)
+{
+
+// ################ Edit your code below ################
+
+    vec2 ab = b - a;
+    vec2 pa = p - a;
+
+    float t = dot(pa, ab) / dot(ab, ab);
+
+    t = clamp(t, 0.0, 1.0);
+
+    return length(p - (a + t * ab));
+}
+
+// Task 1.2
+//
+// Returns the signed distance from position p to an axis-aligned box centered at the origin with half-length,
+// half-height, and half-width specified by half_bounds
+//
+float sdBox(vec3 p, vec3 half_bounds)
+{
+
+// ################ Edit your code below ################
+
+    vec3 d = abs(p) - half_bounds;
+    
+    return min(max(d.x, max(d.y, d.z)), 0.0) + length(max(d, 0.0));
+}
+
+// Task 1.3
+//
+// Returns the signed distance from position p to a cylinder or radius r with an axis connecting the two points a and b.
+//
+float sdCylinder(vec3 p, vec3 a, vec3 b, float r)
+{
+
+// ################ Edit your code below ################
+
+    float dot1 = dot(b - a,b - a);
+    float dot2 = dot(p - a,b - a);
+
+    float x = length((p - a) * dot1 - (b - a) * dot2) - (r * dot1);
+    float y = abs(dot2 - dot1 * 0.5) - (dot1 * 0.5);
+
+    float x2 = pow(x, 2.0);
+    float y2 = pow(y, 2.0);
+    
+    float d;
+
+    if (max(x, y) < 0.0) 
+    {
+        d = -min(x2, y2);
+    } 
+    else 
+    {
+        float x2_check;
+        float y2_check;
+
+        if (x > 0.0) {
+            x2_check = x2;
+        }
+        if (y > 0.0) {
+            y2_check = y2;
+        }
+
+        d = x2_check + y2_check;
+    }    
+
+    return sign(d) * sqrt(abs(d));
+}
+
+// Task 1.4
+//
+// Returns the signed distance from position p to a cone with axis connecting points a and b and (ra, rb) being the
+// radii at a and b respectively.
+//
+float sdCone(vec3 p, vec3 a, vec3 b, float ra, float rb)
+{
+
+// ################ Edit your code below ################
+
+    float radius  = rb - ra;
+
+    float length = dot(b - a,b - a);
+    float distance = dot(p - a,p - a);
+    float projection = dot(p - a,b - a) / length;
+
+    float x = sqrt(distance - pow(projection, 2.0) * length);
+
+    float ax;
+    if (projection < 0.5) {
+        ax = max(0.0, x - ra);
+    } else {
+        ax = max(0.0, x - rb);
+    }
+
+    float ay = abs(projection - 0.5) - 0.5;
+
+    float inter = clamp((radius * (x - ra) + (projection * length)) / (pow(radius, 2.0) + length), 0.0, 1.0);
+
+    float bx = x - ra - (inter * radius);
+    float by = projection - inter;
+    
+    float resA = pow(ax, 2.0) + pow(ay, 2.0) * length;
+    float resB = pow(bx, 2.0) + pow(by, 2.0) * length;
+
+    if (bx < 0.0 && ay < 0.0) {
+        return -1.0 * sqrt(min(resA,resB));
+    } else {
+        return sqrt(min(resA,resB));
+    }
+}
+
+// Task 1.5
+float opSmoothUnion(float d1, float d2, float k)
+{
+
+// ################ Edit your code below ################
+
+    float h = max(k - abs(d1 - d2), 0.0);
+    return min(d1, d2) - (pow(h, 2.0) / (4.0 * k));
+}
+
+// Task 1.6
+float opSmoothIntersection(float d1, float d2, float k)
+{
+
+// ################ Edit your code below ################
+
+    float h = max(k - abs(d1 - d2), 0.0);
+    return max(d1, d2) + (pow(h, 2.0) / (4.0 * k)); 
+}
+
+// Task 1.7
+float opSmoothSubtraction(float d1, float d2, float k)
+{
+
+// ################ Edit your code below ################
+
+    float h = max(k - abs(d1 + d2), 0.0);
+    return max(-d1, d2) + (pow(h, 2.0) / (4.0 * k));
+}
+
+// Task 1.8
+float opRound(float d, float iso)
+{
+
+// ################ Edit your code below ################
+
+    return d - iso;
+}
+
+////////////////////////////////////////////////////
+// FOR TASK 3 & 4
+////////////////////////////////////////////////////
+
+#define TASK3 3
+#define TASK4 4
+#define TASK5 5
+
+// Render Settings
+//
+struct settings
+{
+    int sdf_func;      // Which primitive is being visualized (e.g. SPHERE, BOX, etc.)
+    int shade_mode;    // How the primiive is being visualized (GRID or COST)
+    int marching_type; // Should we use RAY_MARCHING or SPHERE_TRACING?
+    int task_world;    // Which task is being rendered (TASK3 or TASK4)?
+    float anim_speed;  // Specifies the animation speed
+};
+
+// returns the signed distance to an infinite plane with a specific y value
+float sdPlane(vec3 p, float z)
+{
+    return p.y - z;
+}
+
+float world_sdf(vec3 p, float time, settings setts)
+{
+    if (setts.task_world == TASK3)
+    {
+        if ((setts.sdf_func == SPHERE) || (setts.sdf_func == NONE))
+        {
+            return min(sdSphere(p - vec3(0.f, 0.25 * cos(setts.anim_speed * time), 0.f), 0.4f), sdPlane(p, 0.f));
+        }
+        if (setts.sdf_func == BOX)
+        {
+            return min(sdBox(p - vec3(0.f, 0.25 * cos(setts.anim_speed * time), 0.f), vec3(0.4f)), sdPlane(p, 0.f));
+        }
+        if (setts.sdf_func == CYLINDER)
+        {
+            return min(sdCylinder(p - vec3(0.f, 0.25 * cos(setts.anim_speed * time), 0.f), vec3(0.0f, -0.4f, 0.f),
+                                  vec3(0.f, 0.4f, 0.f), 0.2f),
+                       sdPlane(p, 0.f));
+        }
+        if (setts.sdf_func == CONE)
+        {
+            return min(sdCone(p - vec3(0.f, 0.25 * cos(setts.anim_speed * time), 0.f), vec3(-0.4f, 0.0f, 0.f),
+                              vec3(0.4f, 0.0f, 0.f), 0.1f, 0.6f),
+                       sdPlane(p, 0.f));
+        }
+    }
+
+    if (setts.task_world == TASK4)
+    {
+        float dist = 100000.0;
+
+        dist = sdPlane(p.xyz, -0.3);
+        dist = opSmoothUnion(dist, sdSphere(p - vec3(0.f, 0.25 * cos(setts.anim_speed * time), 0.f), 0.4f), 0.1);
+        dist = opSmoothUnion(
+            dist, sdSphere(p - vec3(sin(time), 0.25 * cos(setts.anim_speed * time * 2. + 0.2), cos(time)), 0.2f), 0.01);
+        dist = opSmoothSubtraction(sdBox(p - vec3(0.f, 0.25, 0.f), 0.1 * vec3(2. + cos(time))), dist, 0.2);
+        dist = opSmoothUnion(
+            dist, sdSphere(p - vec3(sin(-time), 0.25 * cos(setts.anim_speed * time * 25. + 0.2), cos(-time)), 0.2f),
+            0.1);
+
+        return dist;
+    }
+
+    if (setts.task_world == TASK5)
+    {
+        float dist = 100000.0;
+
+        dist = sdPlane(p.xyz, -0.3);
+
+        vec3 boxPosition0 = vec3(-0.6, 0.2 * abs(sin(time)), 0.0);
+        vec3 boxPosition1 = vec3(-0.3, 0.4 * abs(sin(time * 1.5)), 0.0);
+        vec3 boxPosition2 = vec3(0.0, 0.2 * abs(sin(time * 2.0)), 0.0);
+        vec3 boxPosition3 = vec3(0.3, 0.3 * abs(sin(time * 2.5)), 0.0);
+        vec3 boxPosition4 = vec3(0.6, 0.1 * abs(sin(time * 3.0)), 0.0);
+
+        dist = opSmoothUnion(dist, sdBox(p - boxPosition0, vec3(0.1)), 0.1);
+        dist = opSmoothUnion(dist, sdBox(p - boxPosition1, vec3(0.1)), 0.1);
+        dist = opSmoothUnion(dist, sdBox(p - boxPosition2, vec3(0.1)), 0.1);
+        dist = opSmoothUnion(dist, sdBox(p - boxPosition3, vec3(0.1)), 0.1);
+        dist = opSmoothUnion(dist, sdBox(p - boxPosition4, vec3(0.1)), 0.1);
+
+        vec3 spherePosition0 = vec3(cos(-time), sin(-time), 0.0);
+        vec3 spherePosition1 = vec3(cos(-time + 1.0), sin(-time + 1.0), 0.0);
+        vec3 spherePosition2 = vec3(cos(-time + 2.0), sin(-time + 2.0), 0.0);
+        vec3 spherePosition3 = vec3(cos(-time + 3.0), sin(-time + 3.0), 0.0);
+        vec3 spherePosition4 = vec3(cos(-time + 4.0), sin(-time + 4.0), 0.0);
+        vec3 spherePosition5 = vec3(cos(-time + 5.0), sin(-time + 5.0), 0.0);
+
+
+        dist = opSmoothUnion(dist, sdSphere(p - spherePosition0, 0.1), 0.1);
+        dist = opSmoothUnion(dist, sdSphere(p - spherePosition1, 0.1), 0.1);
+        dist = opSmoothUnion(dist, sdSphere(p - spherePosition2, 0.1), 0.1);
+        dist = opSmoothUnion(dist, sdSphere(p - spherePosition3, 0.1), 0.1);
+        dist = opSmoothUnion(dist, sdSphere(p - spherePosition4, 0.1), 0.1);
+        dist = opSmoothUnion(dist, sdSphere(p - spherePosition5, 0.1), 0.1);
+
+
+        return dist;
+    }
+
+
+
+    return 1.f;
+}
+// pre-defined constants
+#define EPSILON 1e-4
+#define PI 3.1415926535897932384626433832795
+
+// The animation which you see is of a 2D slice of a 3D object. The objects exist in [-1, 1] space
+// and the slice is continuously moved along z=[-1,1] using a cosine. This method renders what the
+// current z value is as a progress bar at the bottom of the animation for reference.
+vec3 shade_progress_bar(vec2 p, vec2 res, float z)
+{
+    // have to take account of the aspect ratio
+    float xpos = p.x * res.y / res.x;
+
+    if (xpos > z - 0.01 && xpos < z + 0.01)
+        return vec3(1.0);
+    else
+        return vec3(0.0);
+}
+
+
+////////////////////////////////////////////////////
+// TASK 2 - Write up your ray generation code here:
+////////////////////////////////////////////////////
+//
+// Ray
+//
+struct ray
+{
+    vec3 origin;    // This is the origin of the ray
+    vec3 direction; // This is the direction the ray is pointing in
+};
+
+// TASK 2.1
+void compute_camera_frame(vec3 dir, vec3 up, out vec3 u, out vec3 v, out vec3 w)
+{
+
+// ################ Edit your code below ################
+    w = normalize(-dir);    
+    u = normalize(cross(up, w)); 
+    v = normalize(cross(w, u)); 
+    
+}
+
+// TASK 2.2
+ray generate_ray_orthographic(vec2 uv, vec3 e, vec3 u, vec3 v, vec3 w)
+{
+
+// ################ Edit your code below ################
+
+    vec3 origin = e + uv.x * u + uv.y * v;
+    vec3 direction = -w;
+    
+    return ray(origin, direction);
+}
+
+// TASK 2.3
+ray generate_ray_perspective(vec2 uv, vec3 eye, vec3 u, vec3 v, vec3 w, float focal_length)
+{
+
+// ################ Edit your code below ################
+
+    vec3 direction = normalize(-focal_length * w + uv.x * u + uv.y * v);
+    vec3 origin = eye;
+
+    return ray(origin, direction);
+}
+
+////////////////////////////////////////////////////
+// TASK 3 - Write up your code here:
+////////////////////////////////////////////////////
+
+// TASK 3.1
+bool ray_march(ray r, float step_size, int max_iter, settings setts, out vec3 hit_loc, out int iters)
+{
+
+// ################ Edit your code below ################
+
+    // hit_loc = r.origin + r.direction * (-r.origin.y / r.direction.y);
+    // iters = 1;
+    // return true;
+
+    // TODO: implement ray marching
+
+    // it should work as follows:
+    //
+    // while (hit has not occured && iteration < max_iters)
+    //     march a distance of step_size forwards
+    //     evaluate the sdf
+    //     if a collision occurs (SDF < EPSILON)
+    //         return hit location and iteration count
+    // return false
+
+    iters = 1;
+    vec3 current_pos = r.origin;
+
+    while (iters < max_iter){
+
+        current_pos += step_size * r.direction;
+
+        float SDF = world_sdf(current_pos, iTime, setts); 
+
+        if (SDF < EPSILON)
+        {
+            hit_loc = current_pos;
+            return true; 
+        }
+
+        iters++;
+    }
+
+    iters = max_iter;
+    return false;
+}
+
+// TASK 3.2
+bool sphere_tracing(ray r, int max_iter, settings setts, out vec3 hit_loc, out int iters)
+{
+
+// ################ Edit your code below ################
+
+    // hit_loc = r.origin + r.direction * (-r.origin.y / r.direction.y);
+    // iters = 1;
+    // return true;
+
+    // TODO: implement sphere tracing
+
+    // it should work as follows:
+    //
+    // while (hit has not occured && iteration < max_iters)
+    //     set the step size to be the SDF
+    //     march step size forwards
+    //     if a collision occurs (SDF < EPSILON)
+    //         return hit location and iteration count
+    // return false
+
+    iters = 1;
+    vec3 current_pos = r.origin;
+
+    while (iters < max_iter){
+
+        float SDF = world_sdf(current_pos, iTime, setts); 
+
+        current_pos += SDF * r.direction;
+
+        if (SDF < EPSILON)
+        {
+            hit_loc = current_pos;
+            return true; 
+        }
+
+        iters++;
+    }
+
+    iters = max_iter;
+    return false;
+}
+
+////////////////////////////////////////////////////
+// TASK 4 - Write up your code here:
+////////////////////////////////////////////////////
+
+float map(vec3 p, settings setts)
+{
+    return world_sdf(p, iTime, setts);
+}
+
+// TASK 4.1
+vec3 computeNormal(vec3 p, settings setts)
+{
+
+// ################ Edit your code below ################
+
+    vec3 v1 = vec3(EPSILON, 0.0, 0.0);
+    vec3 v2 = vec3(0.0, EPSILON, 0.0);
+    vec3 v3 = vec3(0.0, 0.0, EPSILON);
+
+    vec3 normal = vec3(
+        world_sdf(p + v1, iTime, setts) - world_sdf(p - v1, iTime, setts),
+        world_sdf(p + v2, iTime, setts) - world_sdf(p - v2, iTime, setts),
+        world_sdf(p + v3, iTime, setts) - world_sdf(p - v3, iTime, setts)
+    );
+
+    return normalize(normal);
+}
+
+    void main() {}
+</script>
+<script id='/Users/jeanmarcos/Desktop/pa5-jeanmarcos-perez/main_task3.glsl' type='x-shader/x-fragment'>
+uniform vec3        iResolution;
+uniform float       iTime;
+uniform float       iTimeDelta;
+uniform int         iFrame;
+uniform vec4        iDate;
+uniform vec3        iChannelResolution[10];
+uniform vec4        iMouse;
+uniform vec4        iMouseButton;
+uniform mat4        iViewMatrix;
+uniform sampler2D   iChannel0;
+uniform sampler2D   iChannel1;
+uniform sampler2D   iChannel2;
+uniform sampler2D   iChannel3;
+uniform sampler2D   iChannel4;
+uniform sampler2D   iChannel5;
+uniform sampler2D   iChannel6;
+uniform sampler2D   iChannel7;
+uniform sampler2D   iChannel8;
+uniform sampler2D   iChannel9;
+uniform sampler2D   iKeyboard;
+uniform float       iSampleRate;
+
+#define iGlobalTime iTime
+#define iGlobalFrame iFrame
+
+#define SHADER_TOY
+
+
+// #include "common.glsl"
+#define SPHERE 0
+#define BOX 1
+#define CYLINDER 3
+#define CONE 5
+#define NONE 4
+
+////////////////////////////////////////////////////
+// TASK 1 - Write up your SDF code here:
+////////////////////////////////////////////////////
+
+// returns the signed distance to a sphere from position p
+float sdSphere(vec3 p, float r)
+{
+    return length(p) - r;
+}
+
+// Task 1.1
+//
+// Returns the signed distance to a line segment.
+//
+// p is the position you are evaluating the distance to.
+// a and b are the end points of your line.
+//
+float sdLine(in vec2 p, in vec2 a, in vec2 b)
+{
+
+// ################ Edit your code below ################
+
+    vec2 ab = b - a;
+    vec2 pa = p - a;
+
+    float t = dot(pa, ab) / dot(ab, ab);
+
+    t = clamp(t, 0.0, 1.0);
+
+    return length(p - (a + t * ab));
+}
+
+// Task 1.2
+//
+// Returns the signed distance from position p to an axis-aligned box centered at the origin with half-length,
+// half-height, and half-width specified by half_bounds
+//
+float sdBox(vec3 p, vec3 half_bounds)
+{
+
+// ################ Edit your code below ################
+
+    vec3 d = abs(p) - half_bounds;
+    
+    return min(max(d.x, max(d.y, d.z)), 0.0) + length(max(d, 0.0));
+}
+
+// Task 1.3
+//
+// Returns the signed distance from position p to a cylinder or radius r with an axis connecting the two points a and b.
+//
+float sdCylinder(vec3 p, vec3 a, vec3 b, float r)
+{
+
+// ################ Edit your code below ################
+
+    float dot1 = dot(b - a,b - a);
+    float dot2 = dot(p - a,b - a);
+
+    float x = length((p - a) * dot1 - (b - a) * dot2) - (r * dot1);
+    float y = abs(dot2 - dot1 * 0.5) - (dot1 * 0.5);
+
+    float x2 = pow(x, 2.0);
+    float y2 = pow(y, 2.0);
+    
+    float d;
+
+    if (max(x, y) < 0.0) 
+    {
+        d = -min(x2, y2);
+    } 
+    else 
+    {
+        float x2_check;
+        float y2_check;
+
+        if (x > 0.0) {
+            x2_check = x2;
+        }
+        if (y > 0.0) {
+            y2_check = y2;
+        }
+
+        d = x2_check + y2_check;
+    }    
+
+    return sign(d) * sqrt(abs(d));
+}
+
+// Task 1.4
+//
+// Returns the signed distance from position p to a cone with axis connecting points a and b and (ra, rb) being the
+// radii at a and b respectively.
+//
+float sdCone(vec3 p, vec3 a, vec3 b, float ra, float rb)
+{
+
+// ################ Edit your code below ################
+
+    float radius  = rb - ra;
+
+    float length = dot(b - a,b - a);
+    float distance = dot(p - a,p - a);
+    float projection = dot(p - a,b - a) / length;
+
+    float x = sqrt(distance - pow(projection, 2.0) * length);
+
+    float ax;
+    if (projection < 0.5) {
+        ax = max(0.0, x - ra);
+    } else {
+        ax = max(0.0, x - rb);
+    }
+
+    float ay = abs(projection - 0.5) - 0.5;
+
+    float inter = clamp((radius * (x - ra) + (projection * length)) / (pow(radius, 2.0) + length), 0.0, 1.0);
+
+    float bx = x - ra - (inter * radius);
+    float by = projection - inter;
+    
+    float resA = pow(ax, 2.0) + pow(ay, 2.0) * length;
+    float resB = pow(bx, 2.0) + pow(by, 2.0) * length;
+
+    if (bx < 0.0 && ay < 0.0) {
+        return -1.0 * sqrt(min(resA,resB));
+    } else {
+        return sqrt(min(resA,resB));
+    }
+}
+
+// Task 1.5
+float opSmoothUnion(float d1, float d2, float k)
+{
+
+// ################ Edit your code below ################
+
+    float h = max(k - abs(d1 - d2), 0.0);
+    return min(d1, d2) - (pow(h, 2.0) / (4.0 * k));
+}
+
+// Task 1.6
+float opSmoothIntersection(float d1, float d2, float k)
+{
+
+// ################ Edit your code below ################
+
+    float h = max(k - abs(d1 - d2), 0.0);
+    return max(d1, d2) + (pow(h, 2.0) / (4.0 * k)); 
+}
+
+// Task 1.7
+float opSmoothSubtraction(float d1, float d2, float k)
+{
+
+// ################ Edit your code below ################
+
+    float h = max(k - abs(d1 + d2), 0.0);
+    return max(-d1, d2) + (pow(h, 2.0) / (4.0 * k));
+}
+
+// Task 1.8
+float opRound(float d, float iso)
+{
+
+// ################ Edit your code below ################
+
+    return d - iso;
+}
+
+////////////////////////////////////////////////////
+// FOR TASK 3 & 4
+////////////////////////////////////////////////////
+
+#define TASK3 3
+#define TASK4 4
+#define TASK5 5
+
+// Render Settings
+//
+struct settings
+{
+    int sdf_func;      // Which primitive is being visualized (e.g. SPHERE, BOX, etc.)
+    int shade_mode;    // How the primiive is being visualized (GRID or COST)
+    int marching_type; // Should we use RAY_MARCHING or SPHERE_TRACING?
+    int task_world;    // Which task is being rendered (TASK3 or TASK4)?
+    float anim_speed;  // Specifies the animation speed
+};
+
+// returns the signed distance to an infinite plane with a specific y value
+float sdPlane(vec3 p, float z)
+{
+    return p.y - z;
+}
+
+float world_sdf(vec3 p, float time, settings setts)
+{
+    if (setts.task_world == TASK3)
+    {
+        if ((setts.sdf_func == SPHERE) || (setts.sdf_func == NONE))
+        {
+            return min(sdSphere(p - vec3(0.f, 0.25 * cos(setts.anim_speed * time), 0.f), 0.4f), sdPlane(p, 0.f));
+        }
+        if (setts.sdf_func == BOX)
+        {
+            return min(sdBox(p - vec3(0.f, 0.25 * cos(setts.anim_speed * time), 0.f), vec3(0.4f)), sdPlane(p, 0.f));
+        }
+        if (setts.sdf_func == CYLINDER)
+        {
+            return min(sdCylinder(p - vec3(0.f, 0.25 * cos(setts.anim_speed * time), 0.f), vec3(0.0f, -0.4f, 0.f),
+                                  vec3(0.f, 0.4f, 0.f), 0.2f),
+                       sdPlane(p, 0.f));
+        }
+        if (setts.sdf_func == CONE)
+        {
+            return min(sdCone(p - vec3(0.f, 0.25 * cos(setts.anim_speed * time), 0.f), vec3(-0.4f, 0.0f, 0.f),
+                              vec3(0.4f, 0.0f, 0.f), 0.1f, 0.6f),
+                       sdPlane(p, 0.f));
+        }
+    }
+
+    if (setts.task_world == TASK4)
+    {
+        float dist = 100000.0;
+
+        dist = sdPlane(p.xyz, -0.3);
+        dist = opSmoothUnion(dist, sdSphere(p - vec3(0.f, 0.25 * cos(setts.anim_speed * time), 0.f), 0.4f), 0.1);
+        dist = opSmoothUnion(
+            dist, sdSphere(p - vec3(sin(time), 0.25 * cos(setts.anim_speed * time * 2. + 0.2), cos(time)), 0.2f), 0.01);
+        dist = opSmoothSubtraction(sdBox(p - vec3(0.f, 0.25, 0.f), 0.1 * vec3(2. + cos(time))), dist, 0.2);
+        dist = opSmoothUnion(
+            dist, sdSphere(p - vec3(sin(-time), 0.25 * cos(setts.anim_speed * time * 25. + 0.2), cos(-time)), 0.2f),
+            0.1);
+
+        return dist;
+    }
+
+    if (setts.task_world == TASK5)
+    {
+        float dist = 100000.0;
+
+        dist = sdPlane(p.xyz, -0.3);
+
+        vec3 boxPosition0 = vec3(-0.6, 0.2 * abs(sin(time)), 0.0);
+        vec3 boxPosition1 = vec3(-0.3, 0.4 * abs(sin(time * 1.5)), 0.0);
+        vec3 boxPosition2 = vec3(0.0, 0.2 * abs(sin(time * 2.0)), 0.0);
+        vec3 boxPosition3 = vec3(0.3, 0.3 * abs(sin(time * 2.5)), 0.0);
+        vec3 boxPosition4 = vec3(0.6, 0.1 * abs(sin(time * 3.0)), 0.0);
+
+        dist = opSmoothUnion(dist, sdBox(p - boxPosition0, vec3(0.1)), 0.1);
+        dist = opSmoothUnion(dist, sdBox(p - boxPosition1, vec3(0.1)), 0.1);
+        dist = opSmoothUnion(dist, sdBox(p - boxPosition2, vec3(0.1)), 0.1);
+        dist = opSmoothUnion(dist, sdBox(p - boxPosition3, vec3(0.1)), 0.1);
+        dist = opSmoothUnion(dist, sdBox(p - boxPosition4, vec3(0.1)), 0.1);
+
+        vec3 spherePosition0 = vec3(cos(-time), sin(-time), 0.0);
+        vec3 spherePosition1 = vec3(cos(-time + 1.0), sin(-time + 1.0), 0.0);
+        vec3 spherePosition2 = vec3(cos(-time + 2.0), sin(-time + 2.0), 0.0);
+        vec3 spherePosition3 = vec3(cos(-time + 3.0), sin(-time + 3.0), 0.0);
+        vec3 spherePosition4 = vec3(cos(-time + 4.0), sin(-time + 4.0), 0.0);
+        vec3 spherePosition5 = vec3(cos(-time + 5.0), sin(-time + 5.0), 0.0);
+
+
+        dist = opSmoothUnion(dist, sdSphere(p - spherePosition0, 0.1), 0.1);
+        dist = opSmoothUnion(dist, sdSphere(p - spherePosition1, 0.1), 0.1);
+        dist = opSmoothUnion(dist, sdSphere(p - spherePosition2, 0.1), 0.1);
+        dist = opSmoothUnion(dist, sdSphere(p - spherePosition3, 0.1), 0.1);
+        dist = opSmoothUnion(dist, sdSphere(p - spherePosition4, 0.1), 0.1);
+        dist = opSmoothUnion(dist, sdSphere(p - spherePosition5, 0.1), 0.1);
+
+
+        return dist;
+    }
+
+
+
+    return 1.f;
+}
+// pre-defined constants
+#define EPSILON 1e-4
+#define PI 3.1415926535897932384626433832795
+
+// The animation which you see is of a 2D slice of a 3D object. The objects exist in [-1, 1] space
+// and the slice is continuously moved along z=[-1,1] using a cosine. This method renders what the
+// current z value is as a progress bar at the bottom of the animation for reference.
+vec3 shade_progress_bar(vec2 p, vec2 res, float z)
+{
+    // have to take account of the aspect ratio
+    float xpos = p.x * res.y / res.x;
+
+    if (xpos > z - 0.01 && xpos < z + 0.01)
+        return vec3(1.0);
+    else
+        return vec3(0.0);
+}
+
+
+////////////////////////////////////////////////////
+// TASK 2 - Write up your ray generation code here:
+////////////////////////////////////////////////////
+//
+// Ray
+//
+struct ray
+{
+    vec3 origin;    // This is the origin of the ray
+    vec3 direction; // This is the direction the ray is pointing in
+};
+
+// TASK 2.1
+void compute_camera_frame(vec3 dir, vec3 up, out vec3 u, out vec3 v, out vec3 w)
+{
+
+// ################ Edit your code below ################
+    w = normalize(-dir);    
+    u = normalize(cross(up, w)); 
+    v = normalize(cross(w, u)); 
+    
+}
+
+// TASK 2.2
+ray generate_ray_orthographic(vec2 uv, vec3 e, vec3 u, vec3 v, vec3 w)
+{
+
+// ################ Edit your code below ################
+
+    vec3 origin = e + uv.x * u + uv.y * v;
+    vec3 direction = -w;
+    
+    return ray(origin, direction);
+}
+
+// TASK 2.3
+ray generate_ray_perspective(vec2 uv, vec3 eye, vec3 u, vec3 v, vec3 w, float focal_length)
+{
+
+// ################ Edit your code below ################
+
+    vec3 direction = normalize(-focal_length * w + uv.x * u + uv.y * v);
+    vec3 origin = eye;
+
+    return ray(origin, direction);
+}
+
+////////////////////////////////////////////////////
+// TASK 3 - Write up your code here:
+////////////////////////////////////////////////////
+
+// TASK 3.1
+bool ray_march(ray r, float step_size, int max_iter, settings setts, out vec3 hit_loc, out int iters)
+{
+
+// ################ Edit your code below ################
+
+    // hit_loc = r.origin + r.direction * (-r.origin.y / r.direction.y);
+    // iters = 1;
+    // return true;
+
+    // TODO: implement ray marching
+
+    // it should work as follows:
+    //
+    // while (hit has not occured && iteration < max_iters)
+    //     march a distance of step_size forwards
+    //     evaluate the sdf
+    //     if a collision occurs (SDF < EPSILON)
+    //         return hit location and iteration count
+    // return false
+
+    iters = 1;
+    vec3 current_pos = r.origin;
+
+    while (iters < max_iter){
+
+        current_pos += step_size * r.direction;
+
+        float SDF = world_sdf(current_pos, iTime, setts); 
+
+        if (SDF < EPSILON)
+        {
+            hit_loc = current_pos;
+            return true; 
+        }
+
+        iters++;
+    }
+
+    iters = max_iter;
+    return false;
+}
+
+// TASK 3.2
+bool sphere_tracing(ray r, int max_iter, settings setts, out vec3 hit_loc, out int iters)
+{
+
+// ################ Edit your code below ################
+
+    // hit_loc = r.origin + r.direction * (-r.origin.y / r.direction.y);
+    // iters = 1;
+    // return true;
+
+    // TODO: implement sphere tracing
+
+    // it should work as follows:
+    //
+    // while (hit has not occured && iteration < max_iters)
+    //     set the step size to be the SDF
+    //     march step size forwards
+    //     if a collision occurs (SDF < EPSILON)
+    //         return hit location and iteration count
+    // return false
+
+    iters = 1;
+    vec3 current_pos = r.origin;
+
+    while (iters < max_iter){
+
+        float SDF = world_sdf(current_pos, iTime, setts); 
+
+        current_pos += SDF * r.direction;
+
+        if (SDF < EPSILON)
+        {
+            hit_loc = current_pos;
+            return true; 
+        }
+
+        iters++;
+    }
+
+    iters = max_iter;
+    return false;
+}
+
+////////////////////////////////////////////////////
+// TASK 4 - Write up your code here:
+////////////////////////////////////////////////////
+
+float map(vec3 p, settings setts)
+{
+    return world_sdf(p, iTime, setts);
+}
+
+// TASK 4.1
+vec3 computeNormal(vec3 p, settings setts)
+{
+
+// ################ Edit your code below ################
+
+    vec3 v1 = vec3(EPSILON, 0.0, 0.0);
+    vec3 v2 = vec3(0.0, EPSILON, 0.0);
+    vec3 v3 = vec3(0.0, 0.0, EPSILON);
+
+    vec3 normal = vec3(
+        world_sdf(p + v1, iTime, setts) - world_sdf(p - v1, iTime, setts),
+        world_sdf(p + v2, iTime, setts) - world_sdf(p - v2, iTime, setts),
+        world_sdf(p + v3, iTime, setts) - world_sdf(p - v3, iTime, setts)
+    );
+
+    return normalize(normal);
+}
+
+
+// shade mode
+#define GRID 0
+#define COST 1
+
+// render method
+#define RAY_MARCHING 0
+#define SPHERE_TRACING 1
+
+// projection type
+#define PROJECTION_ORTHOGRAPHIC 0
+#define PROJECTION_PERSPECTIVE 1
+
+int projection_func = PROJECTION_ORTHOGRAPHIC;
+
+int cost_norm = 1500;
+
+// scene types: SPHERE, BOX, CYLINDER, CONE
+
+settings left_settings = settings(SPHERE, COST, RAY_MARCHING, TASK3, 0.35);
+settings right_settings = settings(SPHERE, COST, SPHERE_TRACING, TASK3, 0.35);
+
+//////////////////////////////////////////////////////////////////////////////////
+// we will be replacing all of the code below with our own method(s). All of    //
+// the changes you make will be disgarded. But feel free to change the main     //
+// method to help debug your code.                                              //
+//////////////////////////////////////////////////////////////////////////////////
+
+vec3 shade(vec3 p, int iters, settings setts)
+{
+    // we will give them the grid shade mode
+    if (setts.shade_mode == GRID)
+    {
+        float res = 0.2;
+        float one = abs(mod(p.x, res) - res / 2.0);
+        float two = abs(mod(p.y, res) - res / 2.0);
+        float three = abs(mod(p.z, res) - res / 2.0);
+        float interp = min(one, min(two, three)) / res;
+
+        return mix(vec3(0.2, 0.5, 1.0), vec3(0.1, 0.1, 0.1), smoothstep(0.0, 0.05, abs(interp)));
+    }
+    else if (setts.shade_mode == COST)
+    {
+        return vec3(float(iters) / float(cost_norm));
+    }
+    else
+    {
+        return vec3(0.0);
+    }
+}
+
+vec3 render(settings setts)
+{
+    // get the location on the screen in [-1,1] space after
+    // accounting for the aspect ratio
+    vec2 p = (2.0 * gl_FragCoord.xy - iResolution.xy) / iResolution.y;
+
+    // render the progress bar if need be
+    if (p.y < -0.95)
+    {
+        float val = cos(iTime * setts.anim_speed);
+        return shade_progress_bar(p, iResolution.xy, val);
+    }
+
+    float aspect = iResolution.x / iResolution.y;
+    vec2 uv = gl_FragCoord.xy / iResolution.xy - 0.5;
+    uv.x *= aspect;
+
+    vec3 eye = vec3(-3.0, 2.0 + 0.5, -3.0);
+    vec3 dir = vec3(0.3, 0.0, 0.3) - eye;
+    vec3 up = vec3(0, 1, 0);
+
+    float focal_length = 4.;
+
+    vec3 u, v, w;
+    compute_camera_frame(dir, up, u, v, w);
+
+    ray r;
+    switch (projection_func)
+    {
+    case PROJECTION_ORTHOGRAPHIC:
+        r = generate_ray_orthographic(uv, eye, u, v, w);
+        break;
+
+    case PROJECTION_PERSPECTIVE:
+        r = generate_ray_perspective(uv, eye, u, v, w, focal_length);
+        break;
+    }
+
+    int max_iter = 2000;
+    float step_size = 0.005;
+
+    vec3 col = vec3(0.0);
+
+    vec3 hit_loc;
+    int iters;
+    bool hit;
+
+    // evaluate the specified rendering method and shade appropriately
+    if ((setts.marching_type == RAY_MARCHING) || (setts.marching_type == NONE))
+    {
+        if (ray_march(r, step_size, max_iter, setts, hit_loc, iters))
+        {
+            col = shade(hit_loc, iters, setts);
+        }
+    }
+    else if (setts.marching_type == SPHERE_TRACING)
+    {
+        if (sphere_tracing(r, max_iter, setts, hit_loc, iters))
+        {
+            col = shade(hit_loc, iters, setts);
+        }
+    }
+
+    return pow(col, vec3(1.0 / 2.2));
+}
+
+void main()
+{
+    vec2 uvw = gl_FragCoord.xy / iResolution.xy;
+
+    if (uvw.x < 0.5)
+    {
+        gl_FragColor = vec4(render(left_settings), 1.0);
+    }
+    else
+    {
+        gl_FragColor = vec4(render(right_settings), 1.0);
+    }
+}
+</script>
+
+<!-- FlyControls -->
+
+<script type="text/javascript">
+    let vscode = undefined;
+    if (typeof acquireVsCodeApi === 'function') {
+        vscode = acquireVsCodeApi();
+    }
+    var compileTimePanel;
+
+    let revealError = function(line, file) {
+        if (vscode) {
+            vscode.postMessage({
+                command: 'showGlslsError',
+                line: line,
+                file: file
+            });
+        }
+    };
+
+    let currentShader = {};
+    // Error Callback
+    console.error = function () {
+        if('7' in arguments) {
+            let errorRegex = /ERROR: \d+:(\d+):\W(.*)\n/g;
+            let rawErrors = arguments[7];
+            let match;
+            
+            let diagnostics = [];
+            let message = '';
+            while(match = errorRegex.exec(rawErrors)) {
+                let lineNumber = Number(match[1]) - currentShader.LineOffset;
+                let error = match[2];
+                diagnostics.push({
+                    line: lineNumber,
+                    message: error
+                });
+                let lineHighlight = `<a class='error' unselectable onclick='revealError(${lineNumber}, "${currentShader.File}")'>Line ${lineNumber}</a>`;
+                message += `<li>${lineHighlight}: ${error}</li>`;
+            }
+            console.log(message);
+            let diagnosticBatch = {
+                filename: currentShader.File,
+                diagnostics: diagnostics
+            };
+            if (vscode !== undefined) {
+                vscode.postMessage({
+                    command: 'showGlslDiagnostic',
+                    type: 'error',
+                    diagnosticBatch: diagnosticBatch
+                });
+            }
+    
+            $('#message').append(`<h3>Shader failed to compile - ${currentShader.Name} </h3>`);
+            $('#message').append('<ul>');
+            $('#message').append(message);
+            $('#message').append('</ul>');
+        }
+    };
+
+    // Development feature: Output warnings from third-party libraries
+    // console.warn = function (message) {
+    //     $("#message").append(message + '<br>');
+    // };
+
+    let clock = new THREE.Clock();
+    let pausedTime = 0.0;
+    let deltaTime = 0.0;
+    let startingTime = 9890.879699999216;
+    let time = startingTime;
+
+    let date = new THREE.Vector4();
+
+    let updateDate = function() {
+        let today = new Date();
+        date.x = today.getFullYear();
+        date.y = today.getMonth();
+        date.z = today.getDate();
+        date.w = today.getHours() * 60 * 60 
+            + today.getMinutes() * 60
+            + today.getSeconds()
+            + today.getMilliseconds() * 0.001;
+    };
+    updateDate();
+
+    let paused = true;
+    let forceRenderOneFrame = paused;
+    let pauseButton = document.getElementById('pause-button');
+    if (pauseButton) {
+        pauseButton.checked = paused;
+        pauseButton.onclick = function(){
+            paused = pauseButton.checked;
+            if (!paused) {
+                // Audio Resume
+                pausedTime += clock.getDelta();
+            }
+            else {
+                // Audio Pause
+            }
+
+            if (vscode !== undefined) {
+                vscode.postMessage({
+                    command: 'setPause',
+                    paused: paused
+                });
+            }
+        };
+    }
+    
+    {
+        let screenshotButton = document.getElementById("screenshot");
+        if (screenshotButton) {
+            screenshotButton.addEventListener('click', saveScreenshot);
+        }
+    }
+    
+    {
+        let recordButton = document.getElementById("record");
+        if (recordButton) {
+            recordButton.addEventListener('click', recordAction);
+        }
+    }
+    
+    {
+        let reloadButton = document.getElementById("reload");
+        if (reloadButton) {
+            reloadButton.addEventListener('click', reloadWebview);
+        }
+    }
+    
+    window.addEventListener('message', event => {
+        const message = event.data; // The JSON data our extension sent
+        switch (message.command) {
+            case 'pause':
+                if (pauseButton) {
+                    pauseButton.checked = !pauseButton.checked;
+                }
+                paused = !paused;
+                if (!paused) {
+                    // Audio Resume
+                    pausedTime += clock.getDelta();
+                }
+                else {
+                    // Audio Pause
+                }
+
+                if (vscode !== undefined) {
+                    vscode.postMessage({
+                        command: 'setPause',
+                        paused: paused
+                    });
+                }
+                break;
+            case 'screenshot':
+                saveScreenshot();
+                break;
+        }
+    });
+
+    let canvas = document.getElementById('canvas');
+    let gl = canvas.getContext('webgl2');
+    let isWebGL2 = gl != null;
+    if (gl == null) gl = canvas.getContext('webgl');
+    let supportsFloatFramebuffer = (gl.getExtension('EXT_color_buffer_float') != null) || (gl.getExtension('WEBGL_color_buffer_float') != null);
+    let supportsHalfFloatFramebuffer = (gl.getExtension('EXT_color_buffer_half_float') != null);
+    let framebufferType = THREE.UnsignedByteType;
+    if (supportsFloatFramebuffer) framebufferType = THREE.FloatType;
+    else if (supportsHalfFloatFramebuffer) framebufferType = THREE.HalfFloatType;
+
+    let renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, context: gl, preserveDrawingBuffer: true });
+    let resolution = forceAspectRatio(window.innerWidth, window.innerHeight);
+    let mouse = new THREE.Vector4(328, 423, -328, -423);
+    let mouseButton = new THREE.Vector4(0, 0, 0, 0);
+    let normalizedMouse = new THREE.Vector2(0.26953748006379585, 1);
+    let frameCounter = 0;
+    let recorder = null;
+
+    // Audio Init
+    const audioContext = {
+        sampleRate: 0
+    };
+    // Audio Resume
+
+    let buffers = [];
+    // Buffers
+    buffers.push({
+        Name: '/Users/jeanmarcos/Desktop/pa5-jeanmarcos-perez/main_task3.glsl',
+        File: '/Users/jeanmarcos/Desktop/pa5-jeanmarcos-perez/main_task3.glsl',
+        LineOffset: 601,
+        Target: null,
+        ChannelResolution: Array(10).fill(new THREE.Vector3(0,0,0)),
+        PingPongTarget: null,
+        PingPongChannel: 0,
+        Dependents: [],
+        Shader: new THREE.ShaderMaterial({
+            fragmentShader: document.getElementById('/Users/jeanmarcos/Desktop/pa5-jeanmarcos-perez/main_task3.glsl').textContent,
+            depthWrite: false,
+            depthTest: false,
+            uniforms: {
+                iResolution: { type: 'v3', value: resolution },
+                iTime: { type: 'f', value: 0.0 },
+                iTimeDelta: { type: 'f', value: 0.0 },
+                iFrame: { type: 'i', value: 0 },
+                iMouse: { type: 'v4', value: mouse },
+                iMouseButton: { type: 'v2', value: mouseButton },
+                iViewMatrix: {type: 'm44', value: new THREE.Matrix4() },
+                iChannelResolution: { type: 'v3v', value: Array(10).fill(new THREE.Vector3(0,0,0)) },
+    
+                iDate: { type: 'v4', value: date },
+                iSampleRate: { type: 'f', value: audioContext.sampleRate },
+    
+                iChannel0: { type: 't' },
+                iChannel1: { type: 't' },
+                iChannel2: { type: 't' },
+                iChannel3: { type: 't' },
+                iChannel4: { type: 't' },
+                iChannel5: { type: 't' },
+                iChannel6: { type: 't' },
+                iChannel7: { type: 't' },
+                iChannel8: { type: 't' },
+                iChannel9: { type: 't' },
+    
+                resolution: { type: 'v2', value: resolution },
+                time: { type: 'f', value: 0.0 },
+                mouse: { type: 'v2', value: normalizedMouse },
+            }
+        })
+    });
+    let commonIncludes = [];
+    // Includes
+    commonIncludes.push({
+        Name: '/Users/jeanmarcos/Desktop/pa5-jeanmarcos-perez/sdf.glsl',
+        File: '/Users/jeanmarcos/Desktop/pa5-jeanmarcos-perez/sdf.glsl'
+    });commonIncludes.push({
+        Name: '/Users/jeanmarcos/Desktop/pa5-jeanmarcos-perez/common.glsl',
+        File: '/Users/jeanmarcos/Desktop/pa5-jeanmarcos-perez/common.glsl'
+    });commonIncludes.push({
+        Name: '/Users/jeanmarcos/Desktop/pa5-jeanmarcos-perez/ray.glsl',
+        File: '/Users/jeanmarcos/Desktop/pa5-jeanmarcos-perez/ray.glsl'
+    });
+
+    // WebGL2 inserts more lines into the shader
+    if (isWebGL2) {
+        for (let buffer of buffers) {
+            buffer.LineOffset += 16;
+        }
+    }
+
+    // Keyboard Init
+    
+    // Uniforms Init
+    // Uniforms Update
+
+    let texLoader = new THREE.TextureLoader();
+    // Texture Init
+    
+
+    let scene = new THREE.Scene();
+    let quad = new THREE.Mesh(
+        new THREE.PlaneGeometry(resolution.x, resolution.y),
+        null
+    );
+    scene.add(quad);
+
+    let controlState = new THREE.Camera();
+    controlState.position.set(0,0,0);
+    controlState.quaternion.set(0,0,0,1);
+    scene.add(controlState);
+
+    let flyControls = undefined;
+    if (typeof FlyControls === 'function') {
+        flyControls = new FlyControls(controlState, renderer.domElement, vscode);
+        flyControls.movementSpeed = 1;
+        flyControls.domElement = renderer.domElement;
+        flyControls.rollSpeed = Math.PI / 24;
+        flyControls.autoForward = false;
+        flyControls.dragToLook = true;
+    }
+
+    let camera = new THREE.OrthographicCamera(-resolution.x / 2.0, resolution.x / 2.0, resolution.y / 2.0, -resolution.y / 2.0, 1, 1000);
+    camera.position.set(0, 0, 10);
+
+    // Run every shader once to check for compile errors
+    let compileTimeStart = performance.now();
+    let failed=0;
+    for (let include of commonIncludes) {
+        currentShader = {
+            Name: include.Name,
+            File: include.File,
+            // add two for version and precision lines
+            LineOffset: 27 + 2
+        };
+        // Test Compile Included Files
+        // bail if there is an error found in the include script
+        if(compileFragShader(gl, document.getElementById(include.Name).textContent) == false) {
+            throw Error(`Failed to compile ${include.Name}`);
+        }
+    }
+
+    for (let buffer of buffers) {
+        currentShader = {
+            Name: buffer.Name,
+            File: buffer.File,
+            LineOffset: buffer.LineOffset
+        };
+        quad.material = buffer.Shader;
+        renderer.setRenderTarget(buffer.Target);
+        renderer.render(scene, camera);
+    }
+    currentShader = {};
+    let compileTimeEnd = performance.now();
+    let compileTime = compileTimeEnd - compileTimeStart;
+    if (compileTimePanel !== undefined) {
+        for (let i = 0; i < 200; i++) {
+            compileTimePanel.update(compileTime, 200);
+        }
+    }
+
+    computeSize();
+    render();
+
+    function addLineNumbers( string ) {
+        let lines = string.split( '\\n' );
+        for ( let i = 0; i < lines.length; i ++ ) {
+            lines[ i ] = ( i + 1 ) + ': ' + lines[ i ];
+        }
+        return lines.join( '\\n' );
+    }
+
+    function compileFragShader(gl, fsSource) {
+        const fs = gl.createShader(gl.FRAGMENT_SHADER);
+        gl.shaderSource(fs, fsSource);
+        gl.compileShader(fs);
+        if (!gl.getShaderParameter(fs, gl.COMPILE_STATUS)) {
+            const fragmentLog = gl.getShaderInfoLog(fs);
+            console.error( 'THREE.WebGLProgram: shader error: ', gl.getError(), 'gl.COMPILE_STATUS', null, null, null, null, fragmentLog );
+            return false;
+        }
+        return true;
+    }
+
+    function render() {
+        requestAnimationFrame(render);
+        if (!forceRenderOneFrame) {
+            // Pause Whole Render
+            if (paused) return;
+        }
+        forceRenderOneFrame = false;
+
+        // Advance Time
+        deltaTime = clock.getDelta();
+        time = startingTime + clock.getElapsedTime() - pausedTime;
+        if (vscode !== undefined) {
+            vscode.postMessage({
+                command: 'updateTime',
+                time: time
+            });
+        }
+        updateDate();
+        
+        if(flyControls)
+        {
+            flyControls.update(0.1);
+        }
+
+        // Audio Update
+
+        for (let buffer of buffers) {
+            buffer.Shader.uniforms['iResolution'].value = resolution;
+            buffer.Shader.uniforms['iTimeDelta'].value = deltaTime;
+            buffer.Shader.uniforms['iTime'].value = time;
+            buffer.Shader.uniforms['iFrame'].value = frameCounter;
+            buffer.Shader.uniforms['iMouse'].value = mouse;
+            buffer.Shader.uniforms['iMouseButton'].value = mouseButton;
+
+            buffer.Shader.uniforms['iViewMatrix'].value = controlState.matrixWorld;
+
+            buffer.Shader.uniforms['resolution'].value = resolution;
+            buffer.Shader.uniforms['time'].value = time;
+            buffer.Shader.uniforms['mouse'].value = normalizedMouse;
+
+            quad.material = buffer.Shader;
+            renderer.setRenderTarget(buffer.Target);
+            renderer.render(scene, camera);
+        }
+        
+        // Uniforms Update
+
+        // Keyboard Update
+
+        if (mouse.w > 0.0) {
+            mouse.w = -mouse.w;
+            updateMouse();
+        }
+
+        for (let buffer of buffers) {
+            if (buffer.PingPongTarget) {
+                [buffer.PingPongTarget, buffer.Target] = [buffer.Target, buffer.PingPongTarget];
+                buffer.Shader.uniforms[`iChannel${buffer.PingPongChannel}`].value = buffer.PingPongTarget.texture;
+                for (let dependent of buffer.Dependents) {
+                    const dependentBuffer = buffers[dependent.Index];
+                    dependentBuffer.Shader.uniforms[`iChannel${dependent.Channel}`].value = buffer.Target.texture;
+                }
+            }
+        }
+
+        frameCounter++;
+    }
+    function forceAspectRatio(width, height) {
+        // Forced aspect ratio
+        let forcedAspects = [0,0];
+        let forcedAspectRatio = forcedAspects[0] / forcedAspects[1];
+        let aspectRatio = width / height;
+
+        if (forcedAspectRatio <= 0 || !isFinite(forcedAspectRatio)) {
+            let resolution = new THREE.Vector3(width, height, 1.0);
+            return resolution;
+        }
+        else if (aspectRatio < forcedAspectRatio) {
+            let resolution = new THREE.Vector3(width, Math.floor(width / forcedAspectRatio), 1);
+            return resolution;
+        }
+        else {
+            let resolution = new THREE.Vector3(Math.floor(height * forcedAspectRatio), height, 1);
+            return resolution;
+        }
+    }
+    function computeSize() {
+        
+        // Compute forced aspect ratio and align canvas
+        resolution = forceAspectRatio(window.innerWidth, window.innerHeight);
+        canvas.style.left = `${(window.innerWidth - resolution.x) / 2}px`;
+        canvas.style.top = `${(window.innerHeight - resolution.y) / 2}px`;
+
+        for (let buffer of buffers) {
+            if (buffer.Target) {
+                buffer.Target.setSize(resolution.x, resolution.y);
+            }
+            if (buffer.PingPongTarget) {
+                buffer.PingPongTarget.setSize(resolution.x, resolution.y);
+            }
+        }
+        renderer.setSize(resolution.x, resolution.y, false);
+        
+        // Update Camera and Mesh
+        quad.geometry = new THREE.PlaneGeometry(resolution.x, resolution.y);
+        camera.left = -resolution.x / 2.0;
+        camera.right = resolution.x / 2.0;
+        camera.top = resolution.y / 2.0;
+        camera.bottom = -resolution.y / 2.0;
+        camera.updateProjectionMatrix();
+
+        // Reset iFrame on resize for shaders that rely on first-frame setups
+        frameCounter = 0;
+    }
+    function saveScreenshot() {
+        let doSaveScreenshot = () => {
+            renderer.domElement.toBlob(function(blob){
+                let a = document.createElement('a');
+                let url = URL.createObjectURL(blob);
+                a.href = url;
+                a.download = 'shadertoy.png';
+                a.click();
+            }, 'image/png', 1.0);
+        };
+
+        let forcedScreenshotResolution = [0,0];
+        if (forcedScreenshotResolution[0] <= 0 || forcedScreenshotResolution[1] <= 0) {
+            renderer.render(scene, camera);
+            doSaveScreenshot();
+        }
+        else {
+            renderer.setSize(forcedScreenshotResolution[0], forcedScreenshotResolution[1], false);
+            
+            for (let buffer of buffers) {
+                buffer.Shader.uniforms['iResolution'].value = new THREE.Vector3(forcedScreenshotResolution[0], forcedScreenshotResolution[1], 1);
+                buffer.Shader.uniforms['resolution'].value = new THREE.Vector3(forcedScreenshotResolution[0], forcedScreenshotResolution[1], 1);
+
+                quad.material = buffer.Shader;
+                renderer.setRenderTarget(buffer.Target);
+                renderer.render(scene, camera);
+            }
+
+            doSaveScreenshot();
+            renderer.setSize(resolution.x, resolution.y, false);
+        }
+    }
+    function recordAction() {
+        let recordButton = document.getElementById("record");
+        if (recorder == null) {
+            recordButton.classList.add('recording');
+
+            let stream = canvas.captureStream(30);
+            let recorderOptions = {
+                mimeType: "video/webm"
+            };
+            recorder = new MediaRecorder(stream, recorderOptions);
+            recorder.start();
+            recorder.ondataavailable = function(evt) {
+                let a = document.createElement('a');
+                let url = URL.createObjectURL(evt.data);
+                a.href = url;
+                a.download = 'shadertoy.webm';
+                a.click();
+            };
+        }
+        else {
+            recordButton.classList.remove('recording');
+
+            recorder.stop();
+            recorder = null;
+        }
+    }
+    function reloadWebview() {
+        if (vscode !== undefined) {
+            vscode.postMessage({ command: 'reloadWebview' });
+        }
+    }
+    function updateMouse() {
+        if (vscode !== undefined) {
+            vscode.postMessage({
+                command: 'updateMouse',
+                mouse: {
+                    x: mouse.x,
+                    y: mouse.y,
+                    z: mouse.z,
+                    w: mouse.w
+                },
+                normalizedMouse: {
+                    x: normalizedMouse.x,
+                    y: normalizedMouse.y
+                }
+            });
+        }
+    }
+    let dragging = false;
+    function updateNormalizedMouseCoordinates(clientX, clientY) {
+        let rect = canvas.getBoundingClientRect();
+        let mouseX = clientX - rect.left;
+        let mouseY = resolution.y - clientY - rect.top;
+
+        if (mouseButton.x + mouseButton.y != 0) {
+            mouse.x = mouseX;
+            mouse.y = mouseY;
+        }
+
+        normalizedMouse.x = mouseX / resolution.x;
+        normalizedMouse.y = mouseY / resolution.y;
+    }
+    canvas.addEventListener('mousemove', function(evt) {
+        updateNormalizedMouseCoordinates(evt.clientX, evt.clientY);
+        updateMouse();
+    }, false);
+    canvas.addEventListener('mousedown', function(evt) {
+        if (evt.button == 0)
+            mouseButton.x = 1;
+        if (evt.button == 2)
+            mouseButton.y = 1;
+
+        if (!dragging) {
+            updateNormalizedMouseCoordinates(evt.clientX, evt.clientY);
+            mouse.z = mouse.x;
+            mouse.w = mouse.y;
+            dragging = true
+        }
+
+        updateMouse();
+    }, false);
+    canvas.addEventListener('mouseup', function(evt) {
+        if (evt.button == 0)
+            mouseButton.x = 0;
+        if (evt.button == 2)
+            mouseButton.y = 0;
+
+        dragging = false;
+        mouse.z = -mouse.z;
+        mouse.w = -mouse.w;
+
+        updateMouse();
+    }, false);
+    window.addEventListener('resize', function() {
+        computeSize();
+    });
+
+    // Keyboard Callbacks
+</script>
